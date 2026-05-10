@@ -1,4 +1,4 @@
-#include "commands.h"
+#include "serial_command.h"
 
 #include <Arduino.h>
 #include <ctype.h>
@@ -10,8 +10,8 @@
 #include "sensor.h"
 
 namespace {
-const size_t COMMAND_BUFFER_SIZE = 64;
-char command_buffer[COMMAND_BUFFER_SIZE];
+const size_t SERIAL_COMMAND_BUFFER_SIZE = 64;
+char command_buffer[SERIAL_COMMAND_BUFFER_SIZE];
 size_t command_length = 0;
 
 void trim_command(char *command) {
@@ -37,35 +37,54 @@ void uppercase_command(char *command) {
     }
 }
 
-void print_status() {
-    Serial.print("STATUS force=");
-    Serial.print(sensor_get_force(), 2);
-    Serial.print(" target=");
-    Serial.print(control_get_target_force(), 2);
-    Serial.print(" position=");
-    Serial.print(motor_get_position());
-    Serial.print(" open_limit=");
-    Serial.print(sensor_is_open_limit() ? 1 : 0);
-    Serial.print(" close_limit=");
-    Serial.print(sensor_is_close_limit() ? 1 : 0);
-    Serial.print(" force_mode=");
-    Serial.println(control_is_force_control_enabled() ? 1 : 0);
-}
-
-void handle_force_command(const char *argument) {
+bool parse_float_argument(const char *argument, float *value) {
     if (argument == nullptr || *argument == '\0') {
-        Serial.println("ERR FORCE requires a target value in newtons");
-        return;
+        return false;
     }
 
     char *end = nullptr;
-    float force = strtof(argument, &end);
+    float parsed_value = strtof(argument, &end);
     while (end != nullptr && *end != '\0' && isspace(static_cast<unsigned char>(*end))) {
         end++;
     }
 
     if (end == argument || (end != nullptr && *end != '\0')) {
-        Serial.println("ERR invalid FORCE value");
+        return false;
+    }
+
+    *value = parsed_value;
+    return true;
+}
+
+const char *command_argument(const char *command, size_t command_name_length) {
+    const char *argument = command + command_name_length;
+    while (*argument != '\0' && isspace(static_cast<unsigned char>(*argument))) {
+        argument++;
+    }
+    return argument;
+}
+
+void print_status() {
+    Serial.print("STATUS position=");
+    Serial.print(motor_get_position());
+    Serial.print(" force=");
+    Serial.print(sensor_get_force(), 2);
+    Serial.print(" open_limit=");
+    Serial.print(sensor_is_open_limit() ? 1 : 0);
+    Serial.print(" close_limit=");
+    Serial.print(sensor_is_close_limit() ? 1 : 0);
+    Serial.print(" speed=");
+    Serial.print(motor_get_speed());
+    Serial.print(" target_force=");
+    Serial.print(control_get_target_force(), 2);
+    Serial.print(" force_mode=");
+    Serial.println(control_is_force_control_enabled() ? 1 : 0);
+}
+
+void handle_force_command(const char *argument) {
+    float force = 0.0f;
+    if (!parse_float_argument(argument, &force)) {
+        Serial.println("ERR FORCE requires a numeric target value");
         return;
     }
 
@@ -79,15 +98,32 @@ void handle_force_command(const char *argument) {
     Serial.println(force, 2);
 }
 
+void handle_speed_command(const char *argument) {
+    float speed = 0.0f;
+    if (!parse_float_argument(argument, &speed)) {
+        Serial.println("ERR SPEED requires a numeric value");
+        return;
+    }
+
+    if (speed < 1.0f) {
+        Serial.println("ERR SPEED value must be at least 1 step/s");
+        return;
+    }
+
+    motor_set_speed(static_cast<long>(speed));
+    Serial.print("OK SPEED ");
+    Serial.println(motor_get_speed());
+}
+
 void handle_command(char *command) {
     trim_command(command);
     if (command[0] == '\0') {
         return;
     }
 
-    char parsed_command[COMMAND_BUFFER_SIZE];
-    strncpy(parsed_command, command, COMMAND_BUFFER_SIZE - 1);
-    parsed_command[COMMAND_BUFFER_SIZE - 1] = '\0';
+    char parsed_command[SERIAL_COMMAND_BUFFER_SIZE];
+    strncpy(parsed_command, command, SERIAL_COMMAND_BUFFER_SIZE - 1);
+    parsed_command[SERIAL_COMMAND_BUFFER_SIZE - 1] = '\0';
     uppercase_command(parsed_command);
 
     if (strcmp(parsed_command, "OPEN") == 0) {
@@ -105,24 +141,22 @@ void handle_command(char *command) {
         sensor_tare();
         Serial.println("OK TARE");
     } else if (strncmp(parsed_command, "FORCE", 5) == 0) {
-        const char *argument = command + 5;
-        while (*argument != '\0' && isspace(static_cast<unsigned char>(*argument))) {
-            argument++;
-        }
-        handle_force_command(argument);
+        handle_force_command(command_argument(command, 5));
+    } else if (strncmp(parsed_command, "SPEED", 5) == 0) {
+        handle_speed_command(command_argument(command, 5));
     } else {
         Serial.println("ERR unknown command");
     }
 }
 }
 
-void commands_init() {
+void serial_command_init() {
     command_length = 0;
     command_buffer[0] = '\0';
     Serial.println("Gripper serial command interface ready");
 }
 
-void commands_process() {
+void serial_command_process() {
     while (Serial.available() > 0) {
         char input = static_cast<char>(Serial.read());
 
@@ -138,7 +172,7 @@ void commands_process() {
             continue;
         }
 
-        if (command_length < COMMAND_BUFFER_SIZE - 1) {
+        if (command_length < SERIAL_COMMAND_BUFFER_SIZE - 1) {
             command_buffer[command_length] = input;
             command_length++;
         } else {

@@ -14,6 +14,7 @@ void motor_init();
 void motor_enable();
 void motor_disable();
 void motor_set_speed(long speed);
+long motor_get_speed();
 void motor_move_to(long position);
 long motor_get_position();
 void motor_stop();

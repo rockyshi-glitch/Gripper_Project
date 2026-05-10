@@ -1,11 +1,12 @@
 #include "motor.h"
 
 AccelStepper stepper(AccelStepper::DRIVER, MOTOR_STEP_PIN, MOTOR_DIR_PIN);
+long current_motor_speed = 1000;
 
 void motor_init() {
     pinMode(MOTOR_EN_PIN, OUTPUT);
     motor_enable();
-    stepper.setMaxSpeed(1000);
+    motor_set_speed(current_motor_speed);
     stepper.setAcceleration(500);
 }
 
@@ -18,7 +19,16 @@ void motor_disable() {
 }
 
 void motor_set_speed(long speed) {
+    if (speed < 1) {
+        speed = 1;
+    }
+    current_motor_speed = speed;
+    stepper.setMaxSpeed(speed);
     stepper.setSpeed(speed);
+}
+
+long motor_get_speed() {
+    return current_motor_speed;
 }
 
 void motor_move_to(long position) {

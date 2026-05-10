@@ -1,0 +1,4 @@
+.DS_Store
+
+# PlatformIO build output and downloaded dependencies
+Firmware/.pio/

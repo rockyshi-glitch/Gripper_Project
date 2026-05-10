@@ -16,6 +16,9 @@ extern PIDParams pid_params;
 void control_init();
 void control_loop();
 void control_set_target_force(float force);
+float control_get_target_force();
+bool control_is_force_control_enabled();
+void control_stop();
 void control_open_gripper();
 void control_close_gripper();
 

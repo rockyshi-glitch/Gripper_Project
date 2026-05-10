@@ -25,14 +25,29 @@ void control_set_target_force(float force) {
     force_control_mode = true;
 }
 
+float control_get_target_force() {
+    return target_force;
+}
+
+bool control_is_force_control_enabled() {
+    return force_control_mode;
+}
+
+void control_stop() {
+    force_control_mode = false;
+    motor_stop();
+}
+
 void control_open_gripper() {
     if (!sensor_is_open_limit()) {
+        force_control_mode = false;
         motor_move_to(motor_get_position() + 100); // 示例移动
     }
 }
 
 void control_close_gripper() {
     if (!sensor_is_close_limit()) {
+        force_control_mode = false;
         motor_move_to(motor_get_position() - 100); // 示例移动
     }
 }

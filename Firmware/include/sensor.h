@@ -14,6 +14,7 @@
 extern HX711 scale;
 
 void sensor_init();
+void sensor_tare();
 float sensor_get_force();
 bool sensor_is_open_limit();
 bool sensor_is_close_limit();

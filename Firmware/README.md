@@ -30,7 +30,18 @@ This is a PlatformIO project for controlling a gripper using ESP32 microcontroll
 
 ## Usage
 
-The main loop handles motor control and sensor reading. Use `control_set_target_force()` for force control.
+The main loop handles serial commands, motor control, and sensor reading.
+
+## Serial Commands
+
+Send commands over the serial monitor at 115200 baud. Commands are line-based and should end with a newline.
+
+- `OPEN`: move the gripper in the open direction
+- `CLOSE`: move the gripper in the close direction
+- `STOP`: stop motion and exit force-control mode
+- `STATUS`: print force, target force, motor position, limit switch states, and force-control mode
+- `TARE`: tare the HX711 force sensor
+- `FORCE <newtons>`: set the target gripping force and enter force-control mode
 
 ## PID Force Control
 
